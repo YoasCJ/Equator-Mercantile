@@ -1,0 +1,13 @@
+project_id = "equator-mercantile"
+
+[auth]
+site_url = "http://localhost:5173"
+enable_signup = false
+
+[auth.email]
+# The CLI uses this flag to enable email/password login. The global setting blocks signup.
+enable_signup = true
+
+[functions.buyer-finder]
+# The handler verifies the user's JWT with Auth, then checks CRM membership.
+verify_jwt = false

@@ -1,3 +1,10 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
+supabase/.branches/
+supabase/.temp/
+supabase/snippets/
+playwright-report/
+test-results/

@@ -55,7 +55,6 @@ export function Navigation() {
             >
               Contact
             </button>
-            <a href="/login" className="text-sm font-semibold text-[#0A0A0A] hover:text-[#B8956A]">Login</a>
             <Button
               onClick={() => scrollToSection("contact")}
               className="bg-[#B8956A] hover:bg-[#9A7E54] text-white"
@@ -101,7 +100,6 @@ export function Navigation() {
               >
                 Contact
               </button>
-              <a href="/login" className="text-sm font-semibold text-[#0A0A0A]">Login</a>
               <Button
                 onClick={() => scrollToSection("contact")}
                 className="bg-[#B8956A] hover:bg-[#9A7E54] text-white w-full"
