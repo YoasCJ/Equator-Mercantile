@@ -1,5 +1,6 @@
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router";
 import { Button } from "./ui/button";
 import logo from "../../imports/Desain_tanpa_judul__26_-1.png";
 
@@ -30,7 +31,7 @@ export function Navigation() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-4 lg:gap-8">
             <button
               onClick={() => scrollToSection("home")}
               className="text-sm hover:text-[#B8956A] transition-colors"
@@ -61,11 +62,16 @@ export function Navigation() {
             >
               Request Quotation
             </Button>
+            <Button asChild variant="outline">
+              <Link to="/login">Login</Link>
+            </Button>
           </div>
 
           {/* Mobile menu button */}
           <button
             className="md:hidden p-2"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -105,6 +111,9 @@ export function Navigation() {
                 className="bg-[#B8956A] hover:bg-[#9A7E54] text-white w-full"
               >
                 Request Quotation
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/login">Login</Link>
               </Button>
             </div>
           </div>

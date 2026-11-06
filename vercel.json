@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "phase-1/buyer-crm": false
+    }
+  },
+  "rewrites": [
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/dashboard/:path*", "destination": "/index.html" }
+  ]
+}
