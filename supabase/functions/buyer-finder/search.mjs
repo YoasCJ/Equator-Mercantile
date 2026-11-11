@@ -39,30 +39,33 @@ export function serperCandidates(results, { product, location }) {
     const title = hit.title.trim();
     const snippet = typeof hit.snippet === "string" ? hit.snippet.slice(0, 500) : "";
     const evidence = `${title} ${snippet}`;
-    if (!matchesTerm(evidence, location) || !matchesTerm(evidence, product)) continue;
+    if (!matchesTerm(evidence, location)) continue;
+    const mentionsProduct = matchesTerm(evidence, product);
+    const kretekManufacturer = /^(?:cengkeh|cloves?)$/i.test(product) &&
+      /\b(?:pabrik|produsen|memproduksi|manufactur\w*)\b[^.!?]{0,65}\bkretek\b/i.test(evidence);
     if (/\b(?:jual|penjual|supplier|pemasok|harga jual|bibit|jual beli|dijual)\b/i.test(title) ||
         /\b(?:supplier|pemasok|menjual|menyediakan|membudidayakan)\b[^.!?]{0,45}/i.test(snippet) &&
         /\b(?:minimum pembelian|lihat produk|kebun|stok tersedia)\b/i.test(snippet)) continue;
 
-    const buyerIntent = /\b(?:kami (?:membeli|menerima|mencari|membutuhkan)|mencari pemasok|dibutuhkan|pengadaan|tender|procurement|purchase inquiry|buying requirement)\b/i.test(evidence);
-    const ingredientUse = /\b(?:bahan baku|bahan utama|komposisi|ingredients|menggunakan|diolah menjadi)\b/i.test(evidence);
+    const buyerIntent = mentionsProduct && /\b(?:kami (?:membeli|menerima|mencari|membutuhkan)|mencari pemasok|dibutuhkan|pengadaan|tender|procurement|purchase inquiry|buying requirement)\b/i.test(evidence);
+    const ingredientUse = mentionsProduct && /\b(?:bahan baku|bahan utama|komposisi|ingredients|menggunakan|diolah menjadi)\b/i.test(evidence);
     const businessName = title.match(/\b(?:PT|CV)\.?\s+[^|–—-]+/i)?.[0] ??
       title.split(/\s+[|–—-]\s+/).at(-1)?.trim();
-    if ((!buyerIntent && !ingredientUse) || !businessName ||
+    if ((!buyerIntent && !ingredientUse && !kretekManufacturer) || !businessName ||
         !/\b(?:PT|CV|pabrik|produsen|manufacturer|manufacturing|industri|pengolahan|perusahaan)\b/i.test(evidence) ||
         /\b(?:peluang|persyaratan|cara membuat|manfaat|jurnal|penelitian|lowongan|membaca)\b/i.test(businessName)) continue;
 
     const phone = snippet.match(/https:\/\/(?:wa\.me\/|api\.whatsapp\.com\/send\?phone=)([1-9]\d{9,14})(?![\d.-])/i)?.[1];
     ranked.push({
       domain,
-      priority: buyerIntent ? 1 : 0,
+      priority: buyerIntent ? 2 : ingredientUse ? 1 : 0,
       candidate: {
         name: businessName.slice(0, 160),
         source: source.href,
         website: source.origin,
         phone: mobilePhone(phone),
         location,
-        evidence: `${buyerIntent ? "Indikasi pengadaan" : "Indikasi penggunaan bahan baku"}: ${snippet || title}`,
+        evidence: `${buyerIntent ? "Indikasi pengadaan" : ingredientUse ? "Indikasi penggunaan bahan baku" : "Prospek industri kretek, kebutuhan beli belum dikonfirmasi"}: ${snippet || title}`,
       },
     });
   }
@@ -76,11 +79,14 @@ export function serperCandidates(results, { product, location }) {
 }
 
 export async function searchSerper(criteria, key, fetcher = fetch) {
+  const query = /^(?:cengkeh|cloves?)$/i.test(criteria.product)
+    ? `"${criteria.location}" (("cengkeh" ("membeli" OR "pengadaan" OR "bahan baku" OR "komposisi")) OR ("pabrik rokok kretek" OR "produsen kretek" OR "memproduksi rokok kretek")) -bibit -filetype:pdf`
+    : `"${criteria.product}" "${criteria.location}" ("membeli" OR "mencari pemasok" OR "pengadaan" OR "bahan baku" OR "komposisi") (pabrik OR produsen OR perusahaan) -bibit -filetype:pdf`;
   const response = await fetcher("https://google.serper.dev/search", {
     method: "POST",
     headers: { "X-API-KEY": key, "Content-Type": "application/json" },
     body: JSON.stringify({
-      q: `"${criteria.product}" "${criteria.location}" ("membeli" OR "mencari pemasok" OR "pengadaan" OR "bahan baku" OR "komposisi") (pabrik OR produsen OR perusahaan) -bibit -filetype:pdf`,
+      q: query,
       gl: "id",
       hl: "id",
       num: 10,
