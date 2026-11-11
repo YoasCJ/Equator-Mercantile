@@ -83,12 +83,15 @@ export async function searchSerper(criteria, key, fetcher = fetch) {
       q: `"${criteria.product}" "${criteria.location}" ("membeli" OR "mencari pemasok" OR "pengadaan" OR "bahan baku" OR "komposisi") (pabrik OR produsen OR perusahaan) -bibit -filetype:pdf`,
       gl: "id",
       hl: "id",
-      num: 20,
+      num: 10,
     }),
     signal: AbortSignal.timeout(10000),
     redirect: "error",
   });
-  if (!response.ok) throw new Error("Buyer search provider unavailable");
+  if (!response.ok) {
+    console.warn("Buyer Finder Serper HTTP status", response.status);
+    throw new Error("Buyer search provider unavailable");
+  }
   return serperCandidates((await response.json()).organic, criteria).map(candidate => ({
     ...candidate,
     mapsSearchUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${candidate.name} ${criteria.location}`)}`,
