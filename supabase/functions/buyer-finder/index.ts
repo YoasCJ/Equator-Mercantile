@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
-import { previewCandidates, searchCriteria, searchSerper } from "./search.mjs";
+import { previewCandidates, searchCriteria, searchPlaces, searchSerper } from "./search.mjs";
 
 const headers = {
   "Access-Control-Allow-Origin": "*",
@@ -42,9 +42,10 @@ Deno.serve(async (request) => {
       return json({ message: "Live search is disabled. You can run a preview with sample data." }, 503);
     }
 
-    const providerKey = Deno.env.get("SERPER_API_KEY");
+    const placesKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
+    const serperKey = Deno.env.get("SERPER_API_KEY");
     const dailyLimit = Number(Deno.env.get("BUYER_FINDER_DAILY_LIMIT"));
-    if (!providerKey || !Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 20) {
+    if ((!placesKey && !serperKey) || !Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 20) {
       return json({ message: "Live search needs a server key and a daily limit between 1 and 20." }, 503);
     }
     const secret = defaultKey("SUPABASE_SECRET_KEY", "SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
@@ -54,7 +55,7 @@ Deno.serve(async (request) => {
     if (!reserved) return json({ message: "The team has reached its daily search limit." }, 429);
 
     try {
-      return json({ candidates: await searchSerper(criteria, providerKey) });
+      return json({ candidates: placesKey ? await searchPlaces(criteria, placesKey) : await searchSerper(criteria, serperKey) });
     } catch {
       return json({ message: "The search provider did not return results. The attempt counts toward the daily limit." }, 502);
     }
