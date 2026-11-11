@@ -35,7 +35,7 @@ Deno.serve(async (request) => {
     const body = await request.json().catch(() => null);
     const criteria = searchCriteria(body);
     if (!criteria || typeof body.preview !== "boolean") {
-      return json({ message: "Enter a product and location using 2-80 characters each." }, 400);
+      return json({ message: "Enter a product and location using 2–80 characters each." }, 400);
     }
     if (body.preview) return json({ candidates: previewCandidates(criteria) });
     if (Deno.env.get("BUYER_FINDER_LIVE") !== "true") {

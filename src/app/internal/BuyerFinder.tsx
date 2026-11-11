@@ -86,9 +86,9 @@ function CandidateReview({ candidate, client, preview }: {
       <td>{preview || candidate.mapsUrl ? mobile || "Tidak tersedia" : (
         <input form={formId} aria-label="Verified phone" name="phone" type="tel" maxLength={16}
           pattern="[+]628[0-9]{8,11}" defaultValue={mobile} placeholder="Tidak tersedia"
-          title="Gunakan nomor seluler Indonesia dalam format +628." />
+          title="Gunakan nomor seluler Indonesia dalam format +628…" />
       )}</td>
-      <td><p className="workspace-muted">{candidate.evidence || "-"}</p></td>
+      <td><p className="workspace-muted">{candidate.evidence || "—"}</p></td>
       <td>
         <a className="workspace-back" href={candidate.mapsUrl || candidate.source} target="_blank" rel="noopener noreferrer">
           {candidate.mapsUrl ? "Buka Maps" : "Open source"} <ExternalLink size={14} aria-hidden="true" />
@@ -105,11 +105,11 @@ function CandidateReview({ candidate, client, preview }: {
               <p className="workspace-muted">Isi data yang lu konfirmasi dari website bisnis atau langsung dari usaha.</p>
               <label>Nama usaha<input name="name" maxLength={160} required /></label>
               <label>Lokasi<input name="location" maxLength={160} /></label>
-              <label>HP bisnis<input name="phone" type="tel" maxLength={16} pattern="[+]628[0-9]{8,11}" placeholder="+628." /></label>
+              <label>HP bisnis<input name="phone" type="tel" maxLength={16} pattern="[+]628[0-9]{8,11}" placeholder="+628…" /></label>
             </>
           )}
           <Button aria-label={status === "ready" || status === "error" ? "Add to CRM" : undefined} disabled={status === "saving" || status === "saved" || status === "duplicate"}>
-            {status === "saving" ? "Saving." : status === "saved" || status === "duplicate" ? "� Tersimpan" : candidate.mapsUrl ? "Simpan" : "+ Add"}
+            {status === "saving" ? "Saving…" : status === "saved" || status === "duplicate" ? "✓ Tersimpan" : candidate.mapsUrl ? "Simpan" : "+ Add"}
           </Button>
           {status === "saved" && <p role="status">Buyer saved. <Link className="underline" to="/dashboard/buyers">Open Buyer CRM</Link></p>}
           {status === "duplicate" && <p role="status">A buyer with this name or source already exists in CRM.</p>}
@@ -174,13 +174,13 @@ export function BuyerFinder({ client }: { client: SupabaseClient }) {
             </select>
           </label>
         </div>
-        <Button disabled={pending}><Search size={16} /> {pending ? "Searching." : "Start search"}</Button>
-        {pending && <p role="status">Looking for candidates.</p>}
+        <Button disabled={pending}><Search size={16} /> {pending ? "Searching…" : "Start search"}</Button>
+        {pending && <p role="status">Looking for candidates…</p>}
         {error && <p role="alert" className="workspace-error">{error}</p>}
       </form>
       {result && (
         <section aria-label="Search results" className="grid gap-3">
-          <h2>{result.candidates.length} {result.preview ? "kandidat � Data simulasi" : "kandidat"}</h2>
+          <h2>{result.candidates.length} {result.preview ? "kandidat · Data simulasi" : "kandidat"}</h2>
           {result.candidates.some(candidate => candidate.mapsUrl) && <span className="workspace-maps-credit" translate="no">Google Maps</span>}
           <p className="workspace-muted">
             {result.preview ? "Sample results are for testing the screen and cannot be saved." :

@@ -134,7 +134,7 @@ test("a member can add a buyer, update status, review notes, and sign out on mob
   await page.getByRole("button", { name: "Details for Test Spices" }).click();
   await page.getByRole("combobox", { name: "Status", exact: true }).selectOption("qualified");
   await page.getByRole("button", { name: "Save status" }).click();
-  await expect(page.getByText("New  Qualified")).toBeVisible();
+  await expect(page.getByText("New → Qualified")).toBeVisible();
   await page.getByLabel("Activity note").fill("Follow up on Monday");
   await page.getByRole("button", { name: "Add note" }).click();
   await expect(page.getByText("Follow up on Monday")).toBeVisible();
@@ -187,5 +187,5 @@ test("Maps candidates show a mobile contact and save independently confirmed det
   await page.getByLabel("Nama usaha").fill("Verified Maps Prospect");
   await page.getByLabel("HP bisnis").fill("+6281234567890");
   await page.getByRole("button", { name: "Add to CRM" }).click();
-  await expect(page.getByRole("button", { name: "� Tersimpan" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "✓ Tersimpan" })).toBeDisabled();
 });
