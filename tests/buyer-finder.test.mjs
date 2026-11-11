@@ -33,9 +33,13 @@ test("a live search makes one bounded provider request", async () => {
     assert.equal(request.headers["X-API-KEY"], "test-key");
     assert.match(JSON.parse(request.body).q, /"Cengkeh" "Bandung"/);
     assert.equal(request.redirect, "error");
-    return Response.json({ organic: [] });
+    return Response.json({ organic: [{ title: "Bumbu & Rempah", link: "https://example.com/company" }] });
   };
-  assert.deepEqual(await searchSerper({ product: "Cengkeh", location: "Bandung" }, "test-key", mockFetch), []);
+  const [candidate] = await searchSerper({ product: "Cengkeh", location: "Bandung" }, "test-key", mockFetch);
+  const maps = new URL(candidate.mapsSearchUrl);
+  assert.equal(maps.origin + maps.pathname, "https://www.google.com/maps/search/");
+  assert.equal(maps.searchParams.get("api"), "1");
+  assert.equal(maps.searchParams.get("query"), "Bumbu & Rempah Bandung");
   assert.equal(calls, 1);
 });
 
@@ -47,37 +51,32 @@ test("only Indonesian mobile numbers appear as phone contacts", () => {
   assert.equal(mobilePhone("+65 81234567"), "");
 });
 
-test("Places returns at most five unique operational candidates and tolerates missing photos", async () => {
+test("Places returns at most five unique operational candidates without requesting photos", async () => {
   const businesses = Array.from({ length: 7 }, (_, index) => ({
     id: `place-${index}`,
     displayName: { text: `Company ${index}` },
     businessStatus: "OPERATIONAL",
     internationalPhoneNumber: index === 0 ? "+62 22 123456" : "+62 812 3456 7890",
     googleMapsUri: "https://maps.google.com/?cid=123",
-    photos: [{ name: `places/place-${index}/photos/example` }],
   }));
-  let photos = 0;
+  let calls = 0;
   const fetcher = async (url, request) => {
     assert.equal(request.headers["X-Goog-Api-Key"], "test-key");
-    if (url.endsWith("places:searchText")) {
-      assert.match(JSON.parse(request.body).textQuery, /lada hitam di Bandung/);
-      return Response.json({ places: [
-        { ...businesses[0], id: "closed", businessStatus: "CLOSED_PERMANENTLY" },
-        businesses[0], ...businesses,
-      ] });
-    }
-    photos++;
-    assert.match(url, /\/media\?maxWidthPx=240&skipHttpRedirect=true$/);
-    if (url.includes("/place-0/")) return new Response(null, { status: 404 });
-    return Response.json({ photoUri: "https://lh3.googleusercontent.com/test" });
+    calls++;
+    assert.ok(url.endsWith("places:searchText"));
+    assert.match(JSON.parse(request.body).textQuery, /lada hitam di Bandung/);
+    return Response.json({ places: [
+      { ...businesses[0], id: "closed", businessStatus: "CLOSED_PERMANENTLY" },
+      businesses[0], ...businesses,
+    ] });
   };
   const candidates = await searchPlaces({ product: "lada hitam", location: "Bandung" }, "test-key", fetcher);
-  assert.equal(photos, 5);
+  assert.equal(calls, 1);
   assert.equal(candidates.length, 5);
   assert.equal(candidates[0].phone, "");
-  assert.equal(candidates[0].photo, null);
+
   assert.equal(candidates[1].phone, "+6281234567890");
-  assert.equal(candidates[1].photo.url, "https://lh3.googleusercontent.com/test");
+
   assert.equal(candidates[1].mapsUrl, "https://maps.google.com/?cid=123");
   assert.match(candidates[1].source, /query_place_id=place-1$/);
 });

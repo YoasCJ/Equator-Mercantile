@@ -59,7 +59,10 @@ export async function searchSerper(criteria, key, fetcher = fetch) {
     redirect: "error",
   });
   if (!response.ok) throw new Error("Buyer search provider unavailable");
-  return serperCandidates((await response.json()).organic);
+  return serperCandidates((await response.json()).organic).map(candidate => ({
+    ...candidate,
+    mapsSearchUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${candidate.name} ${criteria.location}`)}`,
+  }));
 }
 
 export function mobilePhone(value) {
@@ -77,36 +80,13 @@ function httpsUrl(value) {
   }
 }
 
-async function placePhoto(photo, key, fetcher) {
-  if (!/^places\/[\w-]+\/photos\/[\w-]+$/.test(photo?.name ?? "")) return null;
-  try {
-    const response = await fetcher(`https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=240&skipHttpRedirect=true`, {
-      headers: { "X-Goog-Api-Key": key },
-      redirect: "error",
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) return null;
-    const url = httpsUrl((await response.json()).photoUri);
-    if (!url || !new URL(url).hostname.endsWith(".googleusercontent.com")) return null;
-    return {
-      url,
-      authors: (photo.authorAttributions ?? []).filter(author => author?.displayName).map(author => ({
-        name: author.displayName,
-        url: httpsUrl(author.uri),
-      })),
-    };
-  } catch {
-    return null;
-  }
-}
-
 export async function searchPlaces({ product, location }, key, fetcher = fetch) {
   const response = await fetcher("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": key,
-      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryTypeDisplayName,places.businessStatus,places.internationalPhoneNumber,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.photos,places.attributions",
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryTypeDisplayName,places.businessStatus,places.internationalPhoneNumber,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.attributions",
     },
     body: JSON.stringify({ textQuery: `grosir distributor ${product} di ${location}`, regionCode: "ID", languageCode: "id", pageSize: 10 }),
     signal: AbortSignal.timeout(10000),
@@ -121,7 +101,7 @@ export async function searchPlaces({ product, location }, key, fetcher = fetch) 
     ids.add(place.id);
     return true;
   }).slice(0, 5);
-  return Promise.all(shortlist.map(async place => {
+  return shortlist.map(place => {
     const source = `https://www.google.com/maps/search/?api=1&query=Indonesia&query_place_id=${encodeURIComponent(place.id)}`;
     return {
       name: place.displayName.text.slice(0, 160),
@@ -131,10 +111,9 @@ export async function searchPlaces({ product, location }, key, fetcher = fetch) 
       location: place.formattedAddress ?? "",
       phone: mobilePhone(place.internationalPhoneNumber) || mobilePhone(place.nationalPhoneNumber),
       evidence: place.primaryTypeDisplayName?.text ?? "",
-      photo: await placePhoto(place.photos?.[0], key, fetcher),
       attributions: (place.attributions ?? []).filter(item => item?.provider).map(item => ({
         name: item.provider, url: httpsUrl(item.providerUri),
       })),
     };
-  }));
+  });
 }

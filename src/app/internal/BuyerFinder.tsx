@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
 import { FunctionsHttpError, type SupabaseClient } from "@supabase/supabase-js";
-import { ExternalLink, ImageOff, Search } from "lucide-react";
+import { ExternalLink, Search } from "lucide-react";
 import { Link } from "react-router";
 import { Button } from "../components/ui/button";
 
@@ -13,13 +13,13 @@ type Candidate = {
   evidence: string;
   location?: string;
   mapsUrl?: string;
-  photo?: { url: string; authors: Credit[] } | null;
+  mapsSearchUrl?: string;
   attributions?: Credit[];
 };
 
 function Credits({ credits }: { credits?: Credit[] }) {
   if (!credits?.length) return null;
-  return <ul className="workspace-photo-credits">
+  return <ul className="workspace-source-credits">
     {credits.map(({ name, url }, index) => (
       <li key={index}>{url ? <a href={url} target="_blank" rel="noopener noreferrer">{name}</a> : name}</li>
     ))}
@@ -34,7 +34,6 @@ function CandidateReview({ candidate, client, preview }: {
 }) {
   const [status, setStatus] = useState<"ready" | "saving" | "saved" | "duplicate" | "error">("ready");
   const formId = useId();
-  const [photoFailed, setPhotoFailed] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const mobile = /^(?:\+62|62)8\d{8,11}$/.test(candidate.phone)
     ? candidate.phone.replace(/^62/, "+62")
@@ -61,22 +60,11 @@ function CandidateReview({ candidate, client, preview }: {
   return (
     <tr>
       <th scope="row">
-        <div className="workspace-candidate">
-          <div className="workspace-candidate-media">
-            {candidate.photo && !photoFailed ? (
-              <>
-                <img src={candidate.photo.url} alt={`Foto ${candidate.name}`} width={104} height={72}
-                  referrerPolicy="no-referrer" onError={() => setPhotoFailed(true)} />
-                <Credits credits={candidate.photo.authors} />
-              </>
-            ) : <div className="workspace-photo-empty" aria-label="Foto tidak tersedia"><ImageOff size={20} aria-hidden="true" /></div>}
-          </div>
-          <div>
-            {preview || candidate.mapsUrl ? candidate.name : (
-              <input form={formId} aria-label="Company name" name="name" defaultValue={candidate.name} maxLength={160} required />
-            )}
-            <Credits credits={candidate.attributions} />
-          </div>
+        <div>
+          {preview || candidate.mapsUrl ? candidate.name : (
+            <input form={formId} aria-label="Company name" name="name" defaultValue={candidate.name} maxLength={160} required />
+          )}
+          <Credits credits={candidate.attributions} />
         </div>
       </th>
       <td>{preview || candidate.mapsUrl ? candidate.location || "Unverified" : (
@@ -93,6 +81,8 @@ function CandidateReview({ candidate, client, preview }: {
         <a className="workspace-back" href={candidate.mapsUrl || candidate.source} target="_blank" rel="noopener noreferrer">
           {candidate.mapsUrl ? "Buka Maps" : "Open source"} <ExternalLink size={14} aria-hidden="true" />
         </a>
+        {candidate.mapsSearchUrl && <a className="workspace-back workspace-candidate-website"
+          href={candidate.mapsSearchUrl} target="_blank" rel="noopener noreferrer">Cari di Maps <ExternalLink size={14} aria-hidden="true" /></a>}
         {candidate.website && <a className="workspace-back workspace-candidate-website" href={candidate.website}
           target="_blank" rel="noopener noreferrer">Website</a>}
       </td>
