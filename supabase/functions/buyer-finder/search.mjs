@@ -1,6 +1,6 @@
 const skippedDomains = ["facebook.com", "instagram.com", "tiktok.com", "youtube.com",
   "linkedin.com", "shopee.co.id", "tokopedia.com", "bukalapak.com", "indotrading.com",
-  "kompas.com", "detik.com", "pinterest.com", "wikipedia.org", "wa.me", "whatsapp.com"];
+  "kompas.com", "detik.com", "scribd.com", "researchgate.net", "wordpress.com", "blogspot.com", "pinterest.com", "wikipedia.org", "wa.me", "whatsapp.com"];
 
 export function searchCriteria(value) {
   const valid = (input) => typeof input === "string" && input.trim().length >= 2 &&
@@ -19,9 +19,12 @@ export function previewCandidates({ product, location }) {
   }];
 }
 
-export function serperCandidates(results) {
-  const candidates = [];
-  const domains = new Set();
+function matchesTerm(text, term) {
+  return text.toLowerCase().includes(term.toLowerCase());
+}
+
+export function serperCandidates(results, { product, location }) {
+  const ranked = [];
   for (const hit of Array.isArray(results) ? results : []) {
     if (typeof hit?.title !== "string" || !hit.title.trim() ||
         typeof hit.link !== "string" || hit.link.length > 500) continue;
@@ -29,20 +32,47 @@ export function serperCandidates(results) {
     try { source = new URL(hit.link); } catch { continue; }
     if (source.protocol !== "https:" || source.username || source.password) continue;
     const domain = source.hostname.replace(/^www\./, "");
-    if (domains.has(domain) || skippedDomains.some((skip) => domain === skip || domain.endsWith(`.${skip}`))) continue;
-    domains.add(domain);
-    const evidence = typeof hit.snippet === "string" ? hit.snippet.slice(0, 500) : "";
-    const phone = evidence.match(/https:\/\/(?:wa\.me\/|api\.whatsapp\.com\/send\?phone=)([1-9]\d{9,14})(?![\d.-])/i)?.[1];
-    candidates.push({
-      name: Array.from(hit.title.trim()).slice(0, 160).join(""),
-      source: hit.link,
-      website: source.origin,
-      phone: phone ?? "",
-      evidence,
+    if (/\.(go|ac|sch)\.id$/.test(domain) ||
+        skippedDomains.some(skip => domain === skip || domain.endsWith(`.${skip}`)) ||
+        /(?:^|\/)(?:blog|berita|news|artikel|article|journal|jurnal|forum|karir|career|tag)(?:\/|$)|\.pdf$/i.test(source.pathname)) continue;
+
+    const title = hit.title.trim();
+    const snippet = typeof hit.snippet === "string" ? hit.snippet.slice(0, 500) : "";
+    const evidence = `${title} ${snippet}`;
+    if (!matchesTerm(evidence, location) || !matchesTerm(evidence, product)) continue;
+    if (/\b(?:jual|penjual|supplier|pemasok|harga jual|bibit|jual beli|dijual)\b/i.test(title) ||
+        /\b(?:supplier|pemasok|menjual|menyediakan|membudidayakan)\b[^.!?]{0,45}/i.test(snippet) &&
+        /\b(?:minimum pembelian|lihat produk|kebun|stok tersedia)\b/i.test(snippet)) continue;
+
+    const buyerIntent = /\b(?:kami (?:membeli|menerima|mencari|membutuhkan)|mencari pemasok|dibutuhkan|pengadaan|tender|procurement|purchase inquiry|buying requirement)\b/i.test(evidence);
+    const ingredientUse = /\b(?:bahan baku|bahan utama|komposisi|ingredients|menggunakan|diolah menjadi)\b/i.test(evidence);
+    const businessName = title.match(/\b(?:PT|CV)\.?\s+[^|–—-]+/i)?.[0] ??
+      title.split(/\s+[|–—-]\s+/).at(-1)?.trim();
+    if ((!buyerIntent && !ingredientUse) || !businessName ||
+        !/\b(?:PT|CV|pabrik|produsen|manufacturer|manufacturing|industri|pengolahan|perusahaan)\b/i.test(evidence) ||
+        /\b(?:peluang|persyaratan|cara membuat|manfaat|jurnal|penelitian|lowongan|membaca)\b/i.test(businessName)) continue;
+
+    const phone = snippet.match(/https:\/\/(?:wa\.me\/|api\.whatsapp\.com\/send\?phone=)([1-9]\d{9,14})(?![\d.-])/i)?.[1];
+    ranked.push({
+      domain,
+      priority: buyerIntent ? 1 : 0,
+      candidate: {
+        name: businessName.slice(0, 160),
+        source: source.href,
+        website: source.origin,
+        phone: mobilePhone(phone),
+        location,
+        evidence: `${buyerIntent ? "Indikasi pengadaan" : "Indikasi penggunaan bahan baku"}: ${snippet || title}`,
+      },
     });
-    if (candidates.length === 5) break;
   }
-  return candidates;
+  ranked.sort((a, b) => b.priority - a.priority);
+  const domains = new Set();
+  return ranked.filter(({ domain }) => {
+    if (domains.has(domain)) return false;
+    domains.add(domain);
+    return true;
+  }).slice(0, 5).map(({ candidate }) => candidate);
 }
 
 export async function searchSerper(criteria, key, fetcher = fetch) {
@@ -50,16 +80,16 @@ export async function searchSerper(criteria, key, fetcher = fetch) {
     method: "POST",
     headers: { "X-API-KEY": key, "Content-Type": "application/json" },
     body: JSON.stringify({
-      q: `"${criteria.product}" "${criteria.location}" (produsen OR pabrik OR distributor OR grosir) kontak`,
+      q: `"${criteria.product}" "${criteria.location}" ("membeli" OR "mencari pemasok" OR "pengadaan" OR "bahan baku" OR "komposisi") (pabrik OR produsen OR perusahaan) -bibit -filetype:pdf`,
       gl: "id",
       hl: "id",
-      num: 10,
+      num: 20,
     }),
     signal: AbortSignal.timeout(10000),
     redirect: "error",
   });
   if (!response.ok) throw new Error("Buyer search provider unavailable");
-  return serperCandidates((await response.json()).organic).map(candidate => ({
+  return serperCandidates((await response.json()).organic, criteria).map(candidate => ({
     ...candidate,
     mapsSearchUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${candidate.name} ${criteria.location}`)}`,
   }));
