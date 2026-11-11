@@ -10,7 +10,7 @@ Use Node.js 22 or newer. Docker and the Supabase CLI are required for the local 
 1. Run `npm ci`.
 2. Start Docker and run `npx supabase start` in this repo. This starts a local project and applies the migration under `supabase/migrations/`.
 3. Copy `.env.example` to `.env.local`. Use the local API URL and **publishable** key reported by `npx supabase status`. Use a recent CLI that issues an `sb_publishable_` key. Vite accepts only that key format for `VITE_SUPABASE_PUBLISHABLE_KEY`.
-4. Open the local Studio URL printed by the CLI. In **Authentication → Users**, create a confirmed email/password user and copy that user's UUID.
+4. Open the local Studio URL printed by the CLI. In **Authentication  Users**, create a confirmed email/password user and copy that user's UUID.
 5. In the same local Studio's SQL editor, run the following with the UUID substituted:
 
    ```sql
@@ -56,14 +56,14 @@ npx supabase functions serve buyer-finder
 
 Sign in, open **Buyer Finder**, and choose **Start search**. The default query is cloves in Bandung. Search results from live mode are unverified leads. Review the business, contact information, and source before saving a candidate.
 
-Live mode requires separate approval. To enable it after approval, provide the following values to the Edge Function through Supabase function secrets or a local ignored env file passed to `supabase functions serve buyer-finder --env-file supabase/functions/.env.local`.
+To enable live mode, provide the following values to the Edge Function through Supabase function secrets or a local ignored env file passed to `supabase functions serve buyer-finder --env-file supabase/functions/.env.local`.
 
 ```dotenv
 BUYER_FINDER_LIVE=true
 BUYER_FINDER_DAILY_LIMIT=3
-SERPER_API_KEY=
+GOOGLE_PLACES_API_KEY=
 ```
 
-The shown limit is an example. Choose a shared limit of 1–20 requests per day for the team. The allowance resets at midnight WIB and applies to this dashboard only. Each live search uses one Serper request, including failed attempts after a reservation. Keep the key out of Vite environment variables.
+The shown limit is an example. Choose a shared limit of 1-20 requests per day for the team. The allowance resets at midnight WIB and applies to this dashboard only. Enable Places API (New) and billing in Google Cloud, restrict the key to Places API (New), then deploy the updated Edge Function. Each search reserves one team request and can use one Text Search call and up to five photo calls. Google Maps results and photos are shown during review. Add stores independently confirmed buyer details and the place-ID link. If no Google Places key is set, an existing SERPER_API_KEY continues to support website-only search. Keep provider keys out of Vite environment variables.
 
 The existing daily bot runs separately. See the [Buyer Finder integration plan](docs/buyer-finder-integration.md) for reconciling its historical results and coordinating quotas before sharing a provider account. Follow the [staging and merge checklist](docs/BUYER_FINDER_SETUP.md) for hosted verification.

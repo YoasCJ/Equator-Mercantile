@@ -8,7 +8,7 @@ const user = {
   role: "authenticated",
 };
 
-async function mockAuth(page: Page, member: boolean) {
+async function mockAuth(page: Page, member: boolean, maps = false) {
   let status = "new";
   let companyName = "";
   let note = "";
@@ -42,8 +42,9 @@ async function mockAuth(page: Page, member: boolean) {
           name: preview ? "Sample Company" : "Test Prospect",
           source: "https://example.com/",
           website: "https://example.com",
-          phone: "",
+          phone: !preview && maps ? "+6281234567890" : "",
           evidence: "Test source",
+          ...(!preview && maps ? { mapsUrl: "https://www.google.com/maps?cid=123", location: "Bandung" } : {}),
         }],
       } });
     }
@@ -133,7 +134,7 @@ test("a member can add a buyer, update status, review notes, and sign out on mob
   await page.getByRole("button", { name: "Details for Test Spices" }).click();
   await page.getByRole("combobox", { name: "Status", exact: true }).selectOption("qualified");
   await page.getByRole("button", { name: "Save status" }).click();
-  await expect(page.getByText("New → Qualified")).toBeVisible();
+  await expect(page.getByText("New  Qualified")).toBeVisible();
   await page.getByLabel("Activity note").fill("Follow up on Monday");
   await page.getByRole("button", { name: "Add note" }).click();
   await expect(page.getByText("Follow up on Monday")).toBeVisible();
@@ -170,4 +171,21 @@ test("Finder previews are read-only and reviewed live candidates can enter the C
   await page.getByRole("button", { name: "Details for Verified Prospect" }).click();
   await page.getByRole("button", { name: "Create template" }).click();
   await expect(page.getByLabel("WhatsApp draft")).toHaveValue(/Verified Prospect/);
+});
+
+test("Maps candidates show a mobile contact and save independently confirmed details", async ({ page }) => {
+  await mockAuth(page, true, true);
+  await page.goto("/dashboard/finder");
+  await login(page);
+  await page.getByRole("combobox", { name: "Search mode" }).selectOption("live");
+  await page.getByRole("button", { name: "Start search" }).click();
+  await expect(page.getByText("+6281234567890")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Buka Maps" })).toHaveAttribute("href", "https://www.google.com/maps?cid=123");
+  await page.getByRole("button", { name: "+ Add", exact: true }).click();
+  await expect(page.getByLabel("Nama usaha")).toHaveValue("");
+  await expect(page.getByLabel("HP bisnis")).toHaveValue("");
+  await page.getByLabel("Nama usaha").fill("Verified Maps Prospect");
+  await page.getByLabel("HP bisnis").fill("+6281234567890");
+  await page.getByRole("button", { name: "Add to CRM" }).click();
+  await expect(page.getByRole("button", { name: "� Tersimpan" })).toBeDisabled();
 });

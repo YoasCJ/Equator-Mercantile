@@ -1,10 +1,30 @@
 import { useId, useState, type FormEvent } from "react";
 import { FunctionsHttpError, type SupabaseClient } from "@supabase/supabase-js";
-import { ExternalLink, Search } from "lucide-react";
+import { ExternalLink, ImageOff, Search } from "lucide-react";
 import { Link } from "react-router";
 import { Button } from "../components/ui/button";
 
-type Candidate = { name: string; source: string; website: string; phone: string; evidence: string };
+type Credit = { name: string; url: string };
+type Candidate = {
+  name: string;
+  source: string;
+  website: string;
+  phone: string;
+  evidence: string;
+  location?: string;
+  mapsUrl?: string;
+  photo?: { url: string; authors: Credit[] } | null;
+  attributions?: Credit[];
+};
+
+function Credits({ credits }: { credits?: Credit[] }) {
+  if (!credits?.length) return null;
+  return <ul className="workspace-photo-credits">
+    {credits.map(({ name, url }, index) => (
+      <li key={index}>{url ? <a href={url} target="_blank" rel="noopener noreferrer">{name}</a> : name}</li>
+    ))}
+  </ul>;
+}
 type SearchResult = { candidates: Candidate[]; preview: boolean };
 
 function CandidateReview({ candidate, client, preview }: {
@@ -14,6 +34,11 @@ function CandidateReview({ candidate, client, preview }: {
 }) {
   const [status, setStatus] = useState<"ready" | "saving" | "saved" | "duplicate" | "error">("ready");
   const formId = useId();
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const mobile = /^(?:\+62|62)8\d{8,11}$/.test(candidate.phone)
+    ? candidate.phone.replace(/^62/, "+62")
+    : "";
 
   async function saveCandidate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,27 +60,56 @@ function CandidateReview({ candidate, client, preview }: {
 
   return (
     <tr>
-      <th scope="row">{preview ? candidate.name : (
-        <input form={formId} aria-label="Company name" name="name" defaultValue={candidate.name} maxLength={160} required />
-      )}</th>
-      <td>{preview ? "Unverified" : (
-        <input form={formId} aria-label="Verified location" name="location" maxLength={160} placeholder="Unverified" />
+      <th scope="row">
+        <div className="workspace-candidate">
+          <div className="workspace-candidate-media">
+            {candidate.photo && !photoFailed ? (
+              <>
+                <img src={candidate.photo.url} alt={`Foto ${candidate.name}`} width={104} height={72}
+                  referrerPolicy="no-referrer" onError={() => setPhotoFailed(true)} />
+                <Credits credits={candidate.photo.authors} />
+              </>
+            ) : <div className="workspace-photo-empty" aria-label="Foto tidak tersedia"><ImageOff size={20} aria-hidden="true" /></div>}
+          </div>
+          <div>
+            {preview || candidate.mapsUrl ? candidate.name : (
+              <input form={formId} aria-label="Company name" name="name" defaultValue={candidate.name} maxLength={160} required />
+            )}
+            <Credits credits={candidate.attributions} />
+          </div>
+        </div>
+      </th>
+      <td>{preview || candidate.mapsUrl ? candidate.location || "Unverified" : (
+        <input form={formId} aria-label="Verified location" name="location" maxLength={160}
+          defaultValue={candidate.location?.slice(0, 160)} placeholder="Tidak tersedia" />
       )}</td>
+      <td>{preview || candidate.mapsUrl ? mobile || "Tidak tersedia" : (
+        <input form={formId} aria-label="Verified phone" name="phone" type="tel" maxLength={16}
+          pattern="[+]628[0-9]{8,11}" defaultValue={mobile} placeholder="Tidak tersedia"
+          title="Gunakan nomor seluler Indonesia dalam format +628." />
+      )}</td>
+      <td><p className="workspace-muted">{candidate.evidence || "-"}</p></td>
       <td>
-        {candidate.phone ? <p>{candidate.phone} · Unverified WhatsApp link</p> : <p>Not found</p>}
-        {!preview && <input form={formId} aria-label="Verified phone" name="phone" type="tel" maxLength={40} placeholder="Enter verified phone" />}
-      </td>
-      <td><a className="workspace-back" href={candidate.website} target="_blank" rel="noopener noreferrer">Website</a></td>
-      <td>
-        <a className="workspace-back" href={candidate.source} target="_blank" rel="noopener noreferrer">
-          <ExternalLink size={16} /> Open source
+        <a className="workspace-back" href={candidate.mapsUrl || candidate.source} target="_blank" rel="noopener noreferrer">
+          {candidate.mapsUrl ? "Buka Maps" : "Open source"} <ExternalLink size={14} aria-hidden="true" />
         </a>
-        {candidate.evidence && <p className="workspace-muted">{candidate.evidence}</p>}
+        {candidate.website && <a className="workspace-back workspace-candidate-website" href={candidate.website}
+          target="_blank" rel="noopener noreferrer">Website</a>}
       </td>
-      <td>{preview ? "Sample only" : (
+      <td>{preview ? "Sample only" : candidate.mapsUrl && !reviewing ? (
+        <Button type="button" onClick={() => setReviewing(true)}>+ Add</Button>
+      ) : (
         <form id={formId} className="workspace-form" onSubmit={saveCandidate}>
-          <Button disabled={status === "saving" || status === "saved" || status === "duplicate"}>
-            {status === "saving" ? "Saving…" : status === "saved" || status === "duplicate" ? "Already added" : "Add to CRM"}
+          {candidate.mapsUrl && status !== "saved" && status !== "duplicate" && (
+            <>
+              <p className="workspace-muted">Isi data yang lu konfirmasi dari website bisnis atau langsung dari usaha.</p>
+              <label>Nama usaha<input name="name" maxLength={160} required /></label>
+              <label>Lokasi<input name="location" maxLength={160} /></label>
+              <label>HP bisnis<input name="phone" type="tel" maxLength={16} pattern="[+]628[0-9]{8,11}" placeholder="+628." /></label>
+            </>
+          )}
+          <Button aria-label={status === "ready" || status === "error" ? "Add to CRM" : undefined} disabled={status === "saving" || status === "saved" || status === "duplicate"}>
+            {status === "saving" ? "Saving." : status === "saved" || status === "duplicate" ? "� Tersimpan" : candidate.mapsUrl ? "Simpan" : "+ Add"}
           </Button>
           {status === "saved" && <p role="status">Buyer saved. <Link className="underline" to="/dashboard/buyers">Open Buyer CRM</Link></p>}
           {status === "duplicate" && <p role="status">A buyer with this name or source already exists in CRM.</p>}
@@ -120,13 +174,14 @@ export function BuyerFinder({ client }: { client: SupabaseClient }) {
             </select>
           </label>
         </div>
-        <Button disabled={pending}><Search size={16} /> {pending ? "Searching…" : "Start search"}</Button>
-        {pending && <p role="status">Looking for candidates…</p>}
+        <Button disabled={pending}><Search size={16} /> {pending ? "Searching." : "Start search"}</Button>
+        {pending && <p role="status">Looking for candidates.</p>}
         {error && <p role="alert" className="workspace-error">{error}</p>}
       </form>
       {result && (
         <section aria-label="Search results" className="grid gap-3">
-          <h2>{result.preview ? "Sample results" : "Buyer candidates"}</h2>
+          <h2>{result.candidates.length} {result.preview ? "kandidat � Data simulasi" : "kandidat"}</h2>
+          {result.candidates.some(candidate => candidate.mapsUrl) && <span className="workspace-maps-credit" translate="no">Google Maps</span>}
           <p className="workspace-muted">
             {result.preview ? "Sample results are for testing the screen and cannot be saved." :
               "Search results are leads. Check the source to confirm the business, contact details, and buying interest."}
@@ -136,7 +191,7 @@ export function BuyerFinder({ client }: { client: SupabaseClient }) {
             <div className="workspace-card workspace-finder-results" role="region" aria-label="Buyer candidates table" tabIndex={0}>
               <table>
                 <thead><tr>
-                  {["Company", "Location", "Phone / WhatsApp", "Website", "Source", "Action"].map((column) => (
+                  {["Nama usaha", "Lokasi", "HP bisnis", "Kenapa relevan", "Sumber", "CRM"].map((column) => (
                     <th scope="col" key={column}>{column}</th>
                   ))}
                 </tr></thead>
