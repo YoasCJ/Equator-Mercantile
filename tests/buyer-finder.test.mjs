@@ -34,7 +34,7 @@ test("a live search makes one bounded provider request", async () => {
     calls += 1;
     assert.equal(url, "https://google.serper.dev/search");
     assert.equal(request.headers["X-API-KEY"], "test-key");
-    assert.match(JSON.parse(request.body).q, /"Cengkeh" "Bandung"/);
+    assert.match(JSON.parse(request.body).q, /"Bandung".*"cengkeh".*"pabrik rokok kretek"/);
     assert.equal(request.redirect, "error");
     return Response.json({ organic: [{ title: "PT Bumbu & Rempah", link: "https://example.com/company", snippet: "Pabrik Bandung memakai cengkeh sebagai bahan baku." }] });
   };
@@ -82,4 +82,16 @@ test("Places returns at most five unique operational candidates without requesti
 
   assert.equal(candidates[1].mapsUrl, "https://maps.google.com/?cid=123");
   assert.match(candidates[1].source, /query_place_id=place-1$/);
+});
+
+test("clove search accepts local kretek manufacturers without a product mention", () => {
+  const organic = [
+    { title: "PT Kretek Lokal", link: "https://kretek.example/", snippet: "Pabrik rokok kretek di Bandung." },
+    { title: "PT Toko Rokok", link: "https://retail.example/", snippet: "Toko rokok kretek Bandung." },
+    { title: "PT Pabrik Luar", link: "https://outside.example/", snippet: "Pabrik rokok kretek di Surabaya." },
+  ];
+  const candidates = serperCandidates(organic, { product: "cengkeh", location: "Bandung" });
+  assert.deepEqual(candidates.map(candidate => candidate.name), ["PT Kretek Lokal"]);
+  assert.match(candidates[0].evidence, /kebutuhan beli belum dikonfirmasi/);
+  assert.deepEqual(serperCandidates(organic, { product: "pala", location: "Bandung" }), []);
 });
