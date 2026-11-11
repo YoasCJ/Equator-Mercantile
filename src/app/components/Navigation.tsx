@@ -30,7 +30,7 @@ export function Navigation() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-4 lg:gap-8">
             <button
               onClick={() => scrollToSection("home")}
               className="text-sm hover:text-[#B8956A] transition-colors"
@@ -55,6 +55,9 @@ export function Navigation() {
             >
               Contact
             </button>
+            <a href="/login" className="text-sm whitespace-nowrap hover:text-[#B8956A] transition-colors">
+              Team Login
+            </a>
             <Button
               onClick={() => scrollToSection("contact")}
               className="bg-[#B8956A] hover:bg-[#9A7E54] text-white"
@@ -100,6 +103,9 @@ export function Navigation() {
               >
                 Contact
               </button>
+              <a href="/login" className="text-sm hover:text-[#B8956A] transition-colors">
+                Team Login
+              </a>
               <Button
                 onClick={() => scrollToSection("contact")}
                 className="bg-[#B8956A] hover:bg-[#9A7E54] text-white w-full"
